@@ -78,8 +78,8 @@ private:
 
     struct alignas(64) MCSNode
     {
-        volatile LockStatus flag;
-        volatile MCSNode *next;
+        std::atomic<LockStatus> flag { kLockWaiting };
+        std::atomic<MCSNode *> next { nullptr };
     };
 
     static thread_local MCSNode me;
