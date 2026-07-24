@@ -181,6 +181,10 @@ endfunction()
 
 # Auto-discover all platform directories
 file(GLOB platform_dirs RELATIVE ${CMAKE_CURRENT_LIST_DIR} "*")
+# LG200's optional Level-2 adapter derives from the existing OpenCL HAL.
+# Process OpenCL first so its target and usage requirements are available.
+list(REMOVE_ITEM platform_dirs "opencl")
+list(INSERT platform_dirs 0 "opencl")
 foreach(dir ${platform_dirs})
     if(IS_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/${dir})
         add_platform(${dir})
