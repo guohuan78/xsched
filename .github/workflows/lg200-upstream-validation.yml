@@ -1,4 +1,4 @@
-name: LG200 upstream validation
+name: Upstream contribution validation
 
 on:
   workflow_dispatch:
@@ -25,36 +25,54 @@ jobs:
         shell: bash
         run: |
           set -euxo pipefail
-          extra=()
-          if [[ -f platforms/lg200/hal/include/xsched/lg200/level2.h ]]; then
-            extra+=( -DLG200_KCD_LEVEL2=ON )
+          args=(
+            -DCMAKE_BUILD_TYPE=Release
+            -DPLATFORM_OPENCL=ON
+            -DBUILD_TEST=ON
+          )
+          if [[ -d platforms/lg200 ]]; then
+            args+=( -DPLATFORM_LG200=ON )
           fi
-          cmake -S . -B build-lg200 -G Ninja \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DPLATFORM_LG200=ON \
-            -DPLATFORM_OPENCL=ON \
-            -DBUILD_TEST=ON \
-            "${extra[@]}"
-      - name: Build and test LG200 targets
+          if [[ -f platforms/lg200/hal/include/xsched/lg200/level2.h ]]; then
+            args+=( -DLG200_KCD_LEVEL2=ON )
+          fi
+          if grep -q 'option(BUILD_SERVICE' CMakeLists.txt; then
+            args+=( -DBUILD_SERVICE=OFF )
+          fi
+          cmake -S . -B build-validation -G Ninja "${args[@]}"
+      - name: Build and test contribution targets
         shell: bash
         run: |
           set -euxo pipefail
-          targets=(lg200_info lg200_resource_test)
-          tests=(./build-lg200/platforms/lg200/test/lg200_resource_test)
+          targets=()
+          tests=()
+          if [[ -d platforms/lg200 ]]; then
+            targets+=(lg200_info lg200_resource_test)
+            tests+=(./build-validation/platforms/lg200/test/lg200_resource_test)
+          fi
           if [[ -f platforms/lg200/hal/include/xsched/lg200/level2.h ]]; then
             targets+=(lg200_kcd_queue_control_test lg200_level2_contract_test)
-            tests+=(./build-lg200/platforms/lg200/test/lg200_kcd_queue_control_test)
-            tests+=(./build-lg200/platforms/lg200/test/lg200_level2_contract_test)
+            tests+=(./build-validation/platforms/lg200/test/lg200_kcd_queue_control_test)
+            tests+=(./build-validation/platforms/lg200/test/lg200_level2_contract_test)
           fi
-          cmake --build build-lg200 --target "${targets[@]}" --parallel 2
+          if [[ -f preempt/test/preempt_level_capability_test.cpp ]]; then
+            targets+=(preempt_level_capability_test)
+            tests+=(./build-validation/preempt/test/preempt_level_capability_test)
+          fi
+          if [[ ${#targets[@]} -eq 0 ]]; then
+            targets+=(preempt halopencl)
+          fi
+          cmake --build build-validation --target "${targets[@]}" --parallel 2
           for test_bin in "${tests[@]}"; do "$test_bin"; done
       - name: Validate public C headers
         shell: bash
         run: |
           set -euxo pipefail
-          printf '#include "xsched/lg200/hal.h"\nint main(void){return 0;}\n' | \
-            cc -x c -std=c11 -Wall -Wextra -Werror \
-              -Iinclude -Iplatforms/lg200/hal/include -fsyntax-only -
+          if [[ -f platforms/lg200/hal/include/xsched/lg200/hal.h ]]; then
+            printf '#include "xsched/lg200/hal.h"\nint main(void){return 0;}\n' | \
+              cc -x c -std=c11 -Wall -Wextra -Werror \
+                -Iinclude -Iplatforms/lg200/hal/include -fsyntax-only -
+          fi
           if [[ -f platforms/lg200/hal/include/xsched/lg200/level2.h ]]; then
             printf '#include "xsched/lg200/level2.h"\nint main(void){return 0;}\n' | \
               cc -x c -std=c11 -Wall -Wextra -Werror \
