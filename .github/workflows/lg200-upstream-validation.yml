@@ -63,4 +63,5 @@ jobs:
         shell: bash
         run: |
           set -euxo pipefail
-          git diff --check "${{ github.event.repository.default_branch }}...HEAD"
+          git fetch origin "${{ github.event.repository.default_branch }}" --depth=1
+          git diff --check "origin/${{ github.event.repository.default_branch }}...HEAD"
