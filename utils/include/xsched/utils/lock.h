@@ -82,6 +82,8 @@ private:
         std::atomic<MCSNode *> next { nullptr };
     };
 
+    /// @FIXME: current implementation is one node per-thread,
+    /// should be one node per-thread per-lock.
     static thread_local MCSNode me;
     std::atomic<MCSNode *> tail_{nullptr};
 };
