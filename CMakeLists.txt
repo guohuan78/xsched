@@ -32,6 +32,7 @@ if(BUILD_SERVICE)
 endif()
 add_subdirectory(platforms)
 
+include(GNUInstallDirs)
 include(CMakePackageConfigHelpers)
 
 configure_package_config_file(
