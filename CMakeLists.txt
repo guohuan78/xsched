@@ -6,10 +6,6 @@ option(SHIM_SOFTLINK     "Create softlink for shim library."     OFF)
 option(BUILD_TEST        "Build test cases."                     OFF)
 option(BUILD_SERVICE     "Build scheduler service and CLI tools." ON)
 
-if(BUILD_SERVICE AND CMAKE_VERSION VERSION_LESS 3.14)
-    message(FATAL_ERROR "BUILD_SERVICE requires CMake 3.14 or newer")
-endif()
-
 if(BUILD_TEST)
     enable_testing()
 endif()

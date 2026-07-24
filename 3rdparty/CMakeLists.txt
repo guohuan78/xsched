@@ -1,4 +1,22 @@
+# Bundled googletest requires CMake 3.16. Keep XSched's platform tests
+# buildable with older toolchains without enabling libipc's own tests.
+set(XSCHED_BUILD_TEST_TMP "${BUILD_TEST}")
+if(CMAKE_VERSION VERSION_LESS 3.16)
+    set(BUILD_TEST OFF)
+endif()
+add_subdirectory(ipc EXCLUDE_FROM_ALL)
+set(BUILD_TEST "${XSCHED_BUILD_TEST_TMP}")
+unset(XSCHED_BUILD_TEST_TMP)
+
+if(PLATFORM_CUDA)
+    add_subdirectory(cuxtra EXCLUDE_FROM_ALL)
+endif()
+
 if(BUILD_SERVICE)
+    if(CMAKE_VERSION VERSION_LESS 3.14)
+        message(FATAL_ERROR "BUILD_SERVICE requires CMake 3.14 or newer")
+    endif()
+
     set(CLI11_PRECOMPILED OFF CACHE BOOL "do not precompile CLI11")
     add_subdirectory(CLI11 EXCLUDE_FROM_ALL)
     unset(CLI11_PRECOMPILED CACHE)
@@ -12,23 +30,7 @@ if(BUILD_SERVICE)
     unset(HTTPLIB_USE_ZLIB_IF_AVAILABLE CACHE)
     unset(HTTPLIB_USE_BROTLI_IF_AVAILABLE CACHE)
     unset(HTTPLIB_INSTALL CACHE)
-endif()
 
-# Bundled googletest requires CMake 3.16. Keep XSched's platform tests
-# buildable with older toolchains without enabling libipc's own tests.
-set(XSCHED_BUILD_TEST_SAVED "${BUILD_TEST}")
-if(CMAKE_VERSION VERSION_LESS 3.16)
-    set(BUILD_TEST OFF)
-endif()
-add_subdirectory(ipc EXCLUDE_FROM_ALL)
-set(BUILD_TEST "${XSCHED_BUILD_TEST_SAVED}")
-unset(XSCHED_BUILD_TEST_SAVED)
-
-if(PLATFORM_CUDA)
-    add_subdirectory(cuxtra EXCLUDE_FROM_ALL)
-endif()
-
-if(BUILD_SERVICE)
     set(JSONCPP_WITH_TESTS OFF CACHE BOOL "do not build jsoncpp tests")
     set(JSONCPP_WITH_POST_BUILD_UNITTEST OFF CACHE BOOL "disable jsoncpp post build unit test")
     set(JSONCPP_WITH_PKGCONFIG_SUPPORT   OFF CACHE BOOL "disable jsoncpp pkgconfig support")
