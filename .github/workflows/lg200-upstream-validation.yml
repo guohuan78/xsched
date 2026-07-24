@@ -1,0 +1,66 @@
+name: LG200 upstream validation
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Branch or commit to validate
+        required: true
+        type: string
+
+jobs:
+  linux:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+          submodules: recursive
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build ocl-icd-opencl-dev clang-format
+      - name: Configure
+        shell: bash
+        run: |
+          set -euxo pipefail
+          extra=()
+          if [[ -f platforms/lg200/hal/include/xsched/lg200/level2.h ]]; then
+            extra+=( -DLG200_KCD_LEVEL2=ON )
+          fi
+          cmake -S . -B build-lg200 -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DPLATFORM_LG200=ON \
+            -DPLATFORM_OPENCL=ON \
+            -DBUILD_TEST=ON \
+            "${extra[@]}"
+      - name: Build and test LG200 targets
+        shell: bash
+        run: |
+          set -euxo pipefail
+          targets=(lg200_info lg200_resource_test)
+          tests=(./build-lg200/platforms/lg200/test/lg200_resource_test)
+          if [[ -f platforms/lg200/hal/include/xsched/lg200/level2.h ]]; then
+            targets+=(lg200_kcd_queue_control_test lg200_level2_contract_test)
+            tests+=(./build-lg200/platforms/lg200/test/lg200_kcd_queue_control_test)
+            tests+=(./build-lg200/platforms/lg200/test/lg200_level2_contract_test)
+          fi
+          cmake --build build-lg200 --target "${targets[@]}" --parallel 2
+          for test_bin in "${tests[@]}"; do "$test_bin"; done
+      - name: Validate public C headers
+        shell: bash
+        run: |
+          set -euxo pipefail
+          printf '#include "xsched/lg200/hal.h"\nint main(void){return 0;}\n' | \
+            cc -x c -std=c11 -Wall -Wextra -Werror \
+              -Iinclude -Iplatforms/lg200/hal/include -fsyntax-only -
+          if [[ -f platforms/lg200/hal/include/xsched/lg200/level2.h ]]; then
+            printf '#include "xsched/lg200/level2.h"\nint main(void){return 0;}\n' | \
+              cc -x c -std=c11 -Wall -Wextra -Werror \
+                -Iinclude -Iplatforms/lg200/hal/include -fsyntax-only -
+          fi
+      - name: Diff hygiene
+        shell: bash
+        run: |
+          set -euxo pipefail
+          git diff --check "${{ github.event.repository.default_branch }}...HEAD"
